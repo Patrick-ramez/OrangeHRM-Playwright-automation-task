@@ -1,3 +1,4 @@
+import re
 import os
 import time
 from datetime import date
@@ -6,27 +7,51 @@ import requests
 
 
 BASE_URL = "https://opensource-demo.orangehrmlive.com"
+LOGIN_URL = f"{BASE_URL}/web/index.php/auth/validate"
+LOGIN_PAGE_URL = f"{BASE_URL}/web/index.php/auth/login"
 CANDIDATES_URL = f"{BASE_URL}/web/index.php/api/v2/recruitment/candidates"
 
 
 def create_authenticated_session():
-    session_cookie = os.getenv("ORANGEHRM_SESSION")
-    if not session_cookie:
+    username = os.getenv("ORANGEHRM_USERNAME")
+    password = os.getenv("ORANGEHRM_PASSWORD")
+    if not username or not password:
         raise RuntimeError(
-            "ORANGEHRM_SESSION is not set. Log in to OrangeHRM and provide "
-            "the current orangehrm cookie before running the test."
+            "ORANGEHRM_USERNAME and ORANGEHRM_PASSWORD must be set before "
+            "running the test."
         )
 
     session = requests.Session()
-    session.cookies.set(
-        "orangehrm",
-        session_cookie,
-        domain="opensource-demo.orangehrmlive.com",
-        path="/",
-    )
     session.headers.update(
         {
             "Accept": "application/json",
+        }
+    )
+
+    login_page_response = session.get(LOGIN_PAGE_URL, timeout=30)
+    login_page_response.raise_for_status()
+    token_match = re.search(
+        r':token="&quot;([^&]+)&quot;"',
+        login_page_response.text,
+    )
+    if not token_match:
+        raise RuntimeError("Could not find the OrangeHRM login CSRF token.")
+
+    login_response = session.post(
+        LOGIN_URL,
+        data={
+            "_token": token_match.group(1),
+            "username": username,
+            "password": password,
+        },
+        timeout=30,
+    )
+    login_response.raise_for_status()
+    if login_response.url == LOGIN_PAGE_URL:
+        raise RuntimeError("OrangeHRM login failed. Check the credentials.")
+
+    session.headers.update(
+        {
             "Content-Type": "application/json",
         }
     )

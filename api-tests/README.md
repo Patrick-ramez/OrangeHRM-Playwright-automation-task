@@ -13,13 +13,15 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-The API uses the authenticated `orangehrm` session cookie. Set the current
-cookie as an environment variable before running the test:
+The test logs in automatically and stores the authenticated `orangehrm`
+session cookie inside a `requests.Session`. Set the credentials as environment
+variables before running the test:
 
 ```powershell
-$env:ORANGEHRM_SESSION = "paste-current-cookie-value-here"
+$env:ORANGEHRM_USERNAME = "Admin"
+$env:ORANGEHRM_PASSWORD = "admin123"
 pytest -v
 ```
 
-Never commit the cookie or put it in source code. The cookie expires, so a
-fresh value may be required for each run.
+Never commit credentials or cookies. The login session is created at runtime
+and the cookie is kept in memory by the test session.
